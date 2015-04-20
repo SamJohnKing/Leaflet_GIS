@@ -1,0 +1,906 @@
+<html>
+<head>
+	<title>Leaflet</title>
+	<link rel="stylesheet" href="http://cdn.leafletjs.com/leaflet-0.7/leaflet.css" />
+	  <link rel="stylesheet" href="http://www.patrick-wied.at/static/heatmapjs/assets/css/commons.css">
+  <link rel="stylesheet" href="http://www.patrick-wied.at/static/heatmapjs/assets/css/example-commons.css">
+  <link rel="stylesheet" href="http://www.patrick-wied.at/static/heatmapjs/assets/third-party/prism/prism.css">
+	<script src="http://cdn.leafletjs.com/leaflet-0.7/leaflet.js"></script>
+  <!--<script src="./Leaflet Heatmap Plugin Example_files/heatmap.min.js"></script>-->
+  <script type='text/javascript'>
+  /*
+ * heatmap.js v2.0.0 | JavaScript Heatmap Library
+ *
+ * Copyright 2008-2014 Patrick Wied <heatmapjs@patrick-wied.at> - All rights reserved.
+ * Dual licensed under MIT and Beerware license 
+ *
+ * :: 2014-08-05 01:42
+ */
+(function(a){var b={defaultRadius:40,defaultRenderer:"canvas2d",defaultGradient:{.25:"rgb(0,0,255)",.55:"rgb(0,255,0)",.85:"yellow",1:"rgb(255,0,0)"},defaultMaxOpacity:1,defaultMinOpacity:0,defaultBlur:.85,defaultXField:"x",defaultYField:"y",defaultValueField:"value",plugins:{}};var c=function i(){var a=function d(a){this._coordinator={};this._data=[];this._radi=[];this._min=0;this._max=1;this._xField=a["xField"]||a.defaultXField;this._yField=a["yField"]||a.defaultYField;this._valueField=a["valueField"]||a.defaultValueField;if(a["radius"]){this._cfgRadius=a["radius"]}};var c=b.defaultRadius;a.prototype={_organiseData:function(a,b){var d=a[this._xField];var e=a[this._yField];var f=this._radi;var g=this._data;var h=this._max;var i=this._min;var j=a[this._valueField]||1;var k=a.radius||this._cfgRadius||c;if(!g[d]){g[d]=[];f[d]=[]}if(!g[d][e]){g[d][e]=j;f[d][e]=k}else{g[d][e]+=j}if(g[d][e]>h){if(!b){this._max=g[d][e]}else{this.setDataMax(g[d][e])}return false}else{return{x:d,y:e,value:j,radius:k,min:i,max:h}}},_unOrganizeData:function(){var a=[];var b=this._data;var c=this._radi;for(var d in b){for(var e in b[d]){a.push({x:d,y:e,radius:c[d][e],value:b[d][e]})}}return{min:this._min,max:this._max,data:a}},_onExtremaChange:function(){this._coordinator.emit("extremachange",{min:this._min,max:this._max})},addData:function(){if(arguments[0].length>0){var a=arguments[0];var b=a.length;while(b--){this.addData.call(this,a[b])}}else{var c=this._organiseData(arguments[0],true);if(c){this._coordinator.emit("renderpartial",{min:this._min,max:this._max,data:[c]})}}return this},setData:function(a){var b=a.data;var c=b.length;this._max=a.max;this._min=a.min||0;this._data=[];this._radi=[];for(var d=0;d<c;d++){this._organiseData(b[d],false)}this._onExtremaChange();this._coordinator.emit("renderall",this._getInternalData());return this},removeData:function(){},setDataMax:function(a){this._max=a;this._onExtremaChange();this._coordinator.emit("renderall",this._getInternalData());return this},setDataMin:function(a){this._min=a;this._onExtremaChange();this._coordinator.emit("renderall",this._getInternalData());return this},setCoordinator:function(a){this._coordinator=a},_getInternalData:function(){return{max:this._max,min:this._min,data:this._data,radi:this._radi}},getData:function(){return this._unOrganizeData()}};return a}();var d=function j(){var a=function(a){var b=a.gradient||a.defaultGradient;var c=document.createElement("canvas");var d=c.getContext("2d");c.width=256;c.height=1;var e=d.createLinearGradient(0,0,256,1);for(var f in b){e.addColorStop(f,b[f])}d.fillStyle=e;d.fillRect(0,0,256,1);return d.getImageData(0,0,256,1).data};var b=function(a,b){var c=document.createElement("canvas");var d=c.getContext("2d");var e=a;var f=a;c.width=c.height=a*2;if(b==1){d.beginPath();d.arc(e,f,a,0,2*Math.PI,false);d.fillStyle="rgba(0,0,0,1)";d.fill()}else{var g=d.createRadialGradient(e,f,a*b,e,f,a);g.addColorStop(0,"rgba(0,0,0,1)");g.addColorStop(1,"rgba(0,0,0,0)");d.fillStyle=g;d.fillRect(0,0,2*a,2*a)}return c};var c=function(a){var b=[];var c=a.min;var d=a.max;var e=a.radi;var a=a.data;var f=Object.keys(a);var g=f.length;while(g--){var h=f[g];var i=Object.keys(a[h]);var j=i.length;while(j--){var k=i[j];var l=a[h][k];var m=e[h][k];b.push({x:h,y:k,value:l,radius:m})}}return{min:c,max:d,data:b}};function d(b){var c=b.container;var d=this.shadowCanvas=document.createElement("canvas");var e=this.canvas=b.canvas||document.createElement("canvas");var f=this._renderBoundaries=[1e4,1e4,0,0];var g=getComputedStyle(b.container)||{};e.className="heatmap-canvas";this._width=e.width=d.width=+g.width.replace(/px/,"");this._height=e.height=d.height=+g.height.replace(/px/,"");this.shadowCtx=d.getContext("2d");this.ctx=e.getContext("2d");e.style.cssText=d.style.cssText="position:absolute;left:0;top:0;";c.style.position="relative";c.appendChild(e);this._palette=a(b);this._templates={};this._setStyles(b)}d.prototype={renderPartial:function(a){this._drawAlpha(a);this._colorize()},renderAll:function(a){this._clear();this._drawAlpha(c(a));this._colorize()},_updateGradient:function(b){this._palette=a(b)},updateConfig:function(a){if(a["gradient"]){this._updateGradient(a)}this._setStyles(a)},setDimensions:function(a,b){this._width=a;this._height=b;this.canvas.width=this.shadowCanvas.width=a;this.canvas.height=this.shadowCanvas.height=b},_clear:function(){this.shadowCtx.clearRect(0,0,this._width,this._height);this.ctx.clearRect(0,0,this._width,this._height)},_setStyles:function(a){this._blur=a.blur==0?0:a.blur||a.defaultBlur;if(a.backgroundColor){this.canvas.style.backgroundColor=a.backgroundColor}this._opacity=(a.opacity||0)*255;this._maxOpacity=(a.maxOpacity||a.defaultMaxOpacity)*255;this._minOpacity=(a.minOpacity||a.defaultMinOpacity)*255},_drawAlpha:function(a){var c=this._min=a.min;var d=this._max=a.max;var a=a.data||[];var e=a.length;var f=1-this._blur;while(e--){var g=a[e];var h=g.x;var i=g.y;var j=g.radius;var k=g.value;var l=h-j;var m=i-j;var n=this.shadowCtx;var o;if(!this._templates[j]){this._templates[j]=o=b(j,f)}else{o=this._templates[j]}n.globalAlpha=k/Math.abs(d-c);n.drawImage(o,l,m);if(l<this._renderBoundaries[0]){this._renderBoundaries[0]=l}if(m<this._renderBoundaries[1]){this._renderBoundaries[1]=m}if(l+2*j>this._renderBoundaries[2]){this._renderBoundaries[2]=l+2*j}if(m+2*j>this._renderBoundaries[3]){this._renderBoundaries[3]=m+2*j}}},_colorize:function(){var a=this._renderBoundaries[0];var b=this._renderBoundaries[1];var c=this._renderBoundaries[2]-a;var d=this._renderBoundaries[3]-b;var e=this._width;var f=this._height;var g=this._opacity;var h=this._maxOpacity;var i=this._minOpacity;if(a<0){a=0}if(b<0){b=0}if(a+c>e){c=e-a}if(b+d>f){d=f-b}var j=this.shadowCtx.getImageData(a,b,c,d);var k=j.data;var l=k.length;var m=this._palette;for(var n=3;n<l;n+=4){var o=k[n];var p=o*4;if(!p){continue}var q;if(g>0){q=g}else{if(o<h){if(o<i){q=i}else{q=o}}else{q=h}}k[n-3]=m[p];k[n-2]=m[p+1];k[n-1]=m[p+2];k[n]=q}j.data=k;this.ctx.putImageData(j,a,b);this._renderBoundaries=[1e3,1e3,0,0]},getValueAt:function(a){var b;var c=this.shadowCtx;var d=c.getImageData(a.x,a.y,1,1);var e=d.data[3];var f=this._max;var g=this._min;b=Math.abs(f-g)*(e/255)>>0;return b},getDataURL:function(){return this.canvas.toDataURL()}};return d}();var e=function k(){var a=false;if(b["defaultRenderer"]==="canvas2d"){a=d}return a}();var f={merge:function(){var a={};var b=arguments.length;for(var c=0;c<b;c++){var d=arguments[c];for(var e in d){a[e]=d[e]}}return a}};var g=function l(){var a=function h(){function a(){this.cStore={}}a.prototype={on:function(a,b,c){var d=this.cStore;if(!d[a]){d[a]=[]}d[a].push(function(a){return b.call(c,a)})},emit:function(a,b){var c=this.cStore;if(c[a]){var d=c[a].length;for(var e=0;e<d;e++){var f=c[a][e];f(b)}}}};return a}();var d=function(a){var b=a._renderer;var c=a._coordinator;var d=a._store;c.on("renderpartial",b.renderPartial,b);c.on("renderall",b.renderAll,b);c.on("extremachange",function(b){a._config.onExtremaChange&&a._config.onExtremaChange({min:b.min,max:b.max,gradient:a._config["gradient"]||a._config["defaultGradient"]})});d.setCoordinator(c)};function g(){var g=this._config=f.merge(b,arguments[0]||{});this._coordinator=new a;if(g["plugin"]){var h=g["plugin"];if(!b.plugins[h]){throw new Error("Plugin '"+h+"' not found. Maybe it was not registered.")}else{var i=b.plugins[h];this._renderer=i.renderer;this._store=i.store}}else{this._renderer=new e(g);this._store=new c(g)}d(this)}g.prototype={addData:function(){this._store.addData.apply(this._store,arguments);return this},removeData:function(){this._store.removeData&&this._store.removeData.apply(this._store,arguments);return this},setData:function(){this._store.setData.apply(this._store,arguments);return this},setDataMax:function(){this._store.setDataMax.apply(this._store,arguments);return this},setDataMin:function(){this._store.setDataMin.apply(this._store,arguments);return this},configure:function(a){this._config=f.merge(this._config,a);this._renderer.updateConfig(this._config);this._coordinator.emit("renderall",this._store._getInternalData());return this},repaint:function(){this._coordinator.emit("renderall",this._store._getInternalData());return this},getData:function(){return this._store.getData()},getDataURL:function(){return this._renderer.getDataURL()},getValueAt:function(a){if(this._store.getValueAt){return this._store.getValueAt(a)}else if(this._renderer.getValueAt){return this._renderer.getValueAt(a)}else{return null}}};return g}();var h={create:function(a){return new g(a)},register:function(a,c){b.plugins[a]=c}};a["h337"]=h})(this||window);
+	</script>
+  <!--<script src="./Leaflet Heatmap Plugin Example_files/leaflet-heatmap.js"></script>-->
+	<script type='text/javascript'>
+	/*
+* Leaflet Heatmap Overlay
+*
+* Copyright (c) 2014, Patrick Wied (http://www.patrick-wied.at)
+* Dual-licensed under the MIT (http://www.opensource.org/licenses/mit-license.php)
+* and the Beerware (http://en.wikipedia.org/wiki/Beerware) license.
+*/
+
+var HeatmapOverlay = L.Class.extend({
+
+  initialize: function (config) {
+    this.cfg = config;
+    this._el = L.DomUtil.create('div', 'leaflet-zoom-hide');
+    this._data = [];
+    this._max = 1;
+    this.cfg.container = this._el;
+  },
+
+  onAdd: function (map) {
+    var size = map.getSize();
+
+    this._map = map;
+
+    this._width = size.x;
+    this._height = size.y;
+
+    this._el.style.width = size.x + 'px';
+    this._el.style.height = size.y + 'px';
+
+    this._resetOrigin();
+
+    map.getPanes().overlayPane.appendChild(this._el);
+
+    if (!this._heatmap) {
+      this._heatmap = h337.create(this.cfg);
+    } 
+
+    // on zoom, reset origin
+    map.on('viewreset', this._resetOrigin, this);
+    // redraw whenever dragend
+    map.on('dragend', this._draw, this);
+
+    this._draw();
+  },
+
+  onRemove: function (map) {
+    // remove layer's DOM elements and listeners
+    map.getPanes().overlayPane.removeChild(this._el);
+
+    map.off('viewreset', this._resetOrigin, this);
+    map.off('dragend', this._draw, this);
+  },
+  _draw: function() {
+    if (!this._map) { return; }
+    
+    var point = this._map.latLngToContainerPoint(this._origin);        
+
+    // reposition the layer
+    this._el.style[HeatmapOverlay.CSS_TRANSFORM] = 'translate(' +
+      -Math.round(point.x) + 'px,' +
+      -Math.round(point.y) + 'px)';
+
+    this._update();
+  },
+  _update: function() {
+    var bounds, zoom, scale;
+
+    bounds = this._map.getBounds();
+    zoom = this._map.getZoom();
+    scale = Math.pow(2, zoom);
+
+    if (this._data.length == 0) {
+      return;
+    }
+
+    var generatedData = { max: this._max };
+    var latLngPoints = [];
+    var radiusMultiplier = this.cfg.scaleRadius ? scale : 1;
+    var localMax = 0;
+    var valueField = this.cfg.valueField;
+    var len = this._data.length;
+  
+    while (len--) {
+      var entry = this._data[len];
+      var value = entry[valueField];
+      var latlng = entry.latlng;
+
+
+      // we don't wanna render points that are not even on the map ;-)
+      if (!bounds.contains(latlng)) {
+        continue;
+      }
+      // local max is the maximum within current bounds
+      if (value > localMax) {
+        localMax = value;
+      }
+
+      var point = this._map.latLngToContainerPoint(latlng);
+      var latlngPoint = { x: Math.round(point.x), y: Math.round(point.y) };
+      latlngPoint[valueField] = value;
+
+      var radius;
+
+      if (entry.radius) {
+        radius = entry.radius * radiusMultiplier;
+      } else {
+        radius = (this.cfg.radius || 2) * radiusMultiplier;
+      }
+      latlngPoint.radius = radius;
+      latLngPoints.push(latlngPoint);
+    }
+    if (this.cfg.useLocalExtrema) {
+      generatedData.max = localMax;
+    }
+
+    generatedData.data = latLngPoints;
+
+    this._heatmap.setData(generatedData);
+  },
+  setData: function(data) {
+    this._max = data.max || this._max;
+    var latField = this.cfg.latField || 'lat';
+    var lngField = this.cfg.lngField || 'lng';
+    var valueField = this.cfg.valueField || 'value';
+  
+    // transform data to latlngs
+    var data = data.data;
+    var len = data.length;
+    var d = [];
+  
+    while (len--) {
+      var entry = data[len];
+      var latlng = new L.LatLng(entry[latField], entry[lngField]);
+      var dataObj = { latlng: latlng };
+      dataObj[valueField] = entry[valueField];
+      if (entry.radius) {
+        dataObj.radius = entry.radius;
+      }
+      d.push(dataObj);
+    }
+    this._data = d;
+  
+    this._draw();
+  },
+  // experimential... not ready.
+  addData: function(pointOrArray) {
+    if (pointOrArray.length > 0) {
+      var len = pointOrArray.length;
+      while(len--) {
+        this.addData(pointOrArray[len]);
+      }
+    } else {
+      var latField = this.cfg.latField || 'lat';
+      var lngField = this.cfg.lngField || 'lng';
+      var valueField = this.cfg.valueField || 'value';
+      var entry = pointOrArray;
+      var latlng = new L.LatLng(entry[latField], entry[lngField]);
+      var dataObj = { latlng: latlng };
+      
+      dataObj[valueField] = entry[valueField];
+      this._max = Math.max(this._max, dataObj[valueField]);
+
+      if (entry.radius) {
+        dataObj.radius = entry.radius;
+      }
+      this._data.push(dataObj);
+      this._draw();
+    }
+  },
+  _resetOrigin: function () {
+    this._origin = this._map.layerPointToLatLng(new L.Point(0, 0));
+    this._draw();
+  } 
+});
+
+HeatmapOverlay.CSS_TRANSFORM = (function() {
+  var div = document.createElement('div');
+  var props = [
+  'transform',
+  'WebkitTransform',
+  'MozTransform',
+  'OTransform',
+  'msTransform'
+  ];
+
+  for (var i = 0; i < props.length; i++) {
+    var prop = props[i];
+    if (div.style[prop] !== undefined) {
+      return prop;
+    }
+  }
+
+  return props[0];
+})();
+	</script>
+  </head>
+<body>
+	<div style="width:100%; height:100%" id="map"></div>
+<script type='text/javascript'>
+//-----------------------------------------------------------------------
+	window.onload = function() {
+      var testData = {
+          max: 8,
+          data: [{lat: 24.6408, lng:46.7728, count: 3},{lat: 50.75, lng:-1.55, count: 1},{lat: 52.6333, lng:1.75, count: 1},{lat: 48.15, lng:9.4667, count: 1},{lat: 52.35, lng:4.9167, count: 2},{lat: 60.8, lng:11.1, count: 1},{lat: 43.561, lng:-116.214, count: 1},{lat: 47.5036, lng:-94.685, count: 1},{lat: 42.1818, lng:-71.1962, count: 1},{lat: 42.0477, lng:-74.1227, count: 1},{lat: 40.0326, lng:-75.719, count: 1},{lat: 40.7128, lng:-73.2962, count: 2},{lat: 27.9003, lng:-82.3024, count: 1},{lat: 38.2085, lng:-85.6918, count: 1},{lat: 46.8159, lng:-100.706, count: 1},{lat: 30.5449, lng:-90.8083, count: 1},{lat: 44.735, lng:-89.61, count: 1},{lat: 41.4201, lng:-75.6485, count: 2},{lat: 39.4209, lng:-74.4977, count: 1},{lat: 39.7437, lng:-104.979, count: 1},{lat: 39.5593, lng:-105.006, count: 1},{lat: 45.2673, lng:-93.0196, count: 1},{lat: 41.1215, lng:-89.4635, count: 1},{lat: 43.4314, lng:-83.9784, count: 1},{lat: 43.7279, lng:-86.284, count: 1},{lat: 40.7168, lng:-73.9861, count: 1},{lat: 47.7294, lng:-116.757, count: 1},{lat: 47.7294, lng:-116.757, count: 2},{lat: 35.5498, lng:-118.917, count: 1},{lat: 34.1568, lng:-118.523, count: 1},{lat: 39.501, lng:-87.3919, count: 3},{lat: 33.5586, lng:-112.095, count: 1},{lat: 38.757, lng:-77.1487, count: 1},{lat: 33.223, lng:-117.107, count: 1},{lat: 30.2316, lng:-85.502, count: 1},{lat: 39.1703, lng:-75.5456, count: 8},{lat: 30.0041, lng:-95.2984, count: 2},{lat: 29.7755, lng:-95.4152, count: 1},{lat: 41.8014, lng:-87.6005, count: 1},{lat: 37.8754, lng:-121.687, count: 7},{lat: 38.4493, lng:-122.709, count: 1},{lat: 40.5494, lng:-89.6252, count: 1},{lat: 42.6105, lng:-71.2306, count: 1},{lat: 40.0973, lng:-85.671, count: 1},{lat: 40.3987, lng:-86.8642, count: 1},{lat: 40.4224, lng:-86.8031, count: 4},{lat: 47.2166, lng:-122.451, count: 1},{lat: 32.2369, lng:-110.956, count: 1},{lat: 41.3969, lng:-87.3274, count: 2},{lat: 41.7364, lng:-89.7043, count: 2},{lat: 42.3425, lng:-71.0677, count: 1},{lat: 33.8042, lng:-83.8893, count: 1},{lat: 36.6859, lng:-121.629, count: 2},{lat: 41.0957, lng:-80.5052, count: 1},{lat: 46.8841, lng:-123.995, count: 1},{lat: 40.2851, lng:-75.9523, count: 2},{lat: 42.4235, lng:-85.3992, count: 1},{lat: 39.7437, lng:-104.979, count: 2},{lat: 25.6586, lng:-80.3568, count: 7},{lat: 33.0975, lng:-80.1753, count: 1},{lat: 25.7615, lng:-80.2939, count: 1},{lat: 26.3739, lng:-80.1468, count: 1},{lat: 37.6454, lng:-84.8171, count: 1},{lat: 34.2321, lng:-77.8835, count: 1},{lat: 34.6774, lng:-82.928, count: 1},{lat: 39.9744, lng:-86.0779, count: 1},{lat: 35.6784, lng:-97.4944, count: 2},{lat: 33.5547, lng:-84.1872, count: 1},{lat: 27.2498, lng:-80.3797, count: 1},{lat: 41.4789, lng:-81.6473, count: 1},{lat: 41.813, lng:-87.7134, count: 1},{lat: 41.8917, lng:-87.9359, count: 1},{lat: 35.0911, lng:-89.651, count: 1},{lat: 32.6102, lng:-117.03, count: 1},{lat: 41.758, lng:-72.7444, count: 1},{lat: 39.8062, lng:-86.1407, count: 1},{lat: 41.872, lng:-88.1662, count: 1},{lat: 34.1404, lng:-81.3369, count: 1},{lat: 46.15, lng:-60.1667, count: 1},{lat: 36.0679, lng:-86.7194, count: 1},{lat: 43.45, lng:-80.5, count: 1},{lat: 44.3833, lng:-79.7, count: 1},{lat: 45.4167, lng:-75.7, count: 2},{lat: 43.75, lng:-79.2, count: 2},{lat: 45.2667, lng:-66.0667, count: 3},{lat: 42.9833, lng:-81.25, count: 2},{lat: 44.25, lng:-79.4667, count: 3},{lat: 45.2667, lng:-66.0667, count: 2},{lat: 34.3667, lng:-118.478, count: 3},{lat: 42.734, lng:-87.8211, count: 1},{lat: 39.9738, lng:-86.1765, count: 1},{lat: 33.7438, lng:-117.866, count: 1},{lat: 37.5741, lng:-122.321, count: 1},{lat: 42.2843, lng:-85.2293, count: 1},{lat: 34.6574, lng:-92.5295, count: 1},{lat: 41.4881, lng:-87.4424, count: 1},{lat: 25.72, lng:-80.2707, count: 1},{lat: 34.5873, lng:-118.245, count: 1},{lat: 35.8278, lng:-78.6421, count: 1}]
+        };
+
+        var baseLayer = L.tileLayer(
+          'http://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
+            attribution: 'Map data &copy; <a href="http://openstreetmap.org">OpenStreetMap</a> contributors, <a href="http://creativecommons.org/licenses/by-sa/2.0/">CC-BY-SA</a>, Imagery © <a href="http://cloudmade.com">CloudMade</a>',
+            maxZoom: 18
+          }
+        ); 
+
+        var cfg = {
+          // radius should be small ONLY if scaleRadius is true (or small radius is intended)
+          "radius": 2,
+          "maxOpacity": .8, 
+          // scales the radius based on map zoom
+          "scaleRadius": true, 
+          // if set to false the heatmap uses the global maximum for colorization
+          // if activated: uses the data maximum within the current map boundaries 
+          //   (there will always be a red spot with useLocalExtremas true)
+          "useLocalExtrema": true,
+          // which field name in your data represents the latitude - default "lat"
+          latField: 'lat',
+          // which field name in your data represents the longitude - default "lng"
+          lngField: 'lng',
+          // which field name in your data represents the data value - default "value"
+          valueField: 'count'
+        };
+
+
+        var heatmapLayer = new HeatmapOverlay(cfg);
+
+        var map = new L.Map('map', {
+          center: new L.LatLng(25.6586, -80.3568),
+          zoom: 4,
+          layers: [baseLayer, heatmapLayer],
+		  zoomAnimation: true 
+        });
+
+        heatmapLayer.setData(testData);
+//----------------------------------------------------------------
+var myIcon = L.icon({
+    iconUrl: 'icon.png',
+    iconRetinaUrl: 'icon.png',
+    iconSize: [30, 30],
+    iconAnchor: [15, 15],
+});
+
+		L.marker([40, 116.1],{icon: myIcon}).addTo(map)
+			//.bindPopup("<b>Hello world!</b><br />I am a popup.").openPopup();
+
+		L.circle([40,116.2], 500, {
+			color: 'red',
+			fillColor: '#f03',
+			fillOpacity: 0.5
+		}).addTo(map).bindPopup("I am a circle.");
+
+		L.polygon([
+			[39.509, 116.08],
+			[39.509, 116.08],
+			[39.503, 116.06],
+			[39.51, 116.047]
+		]).addTo(map).bindPopup("I am a polygon.");
+
+		var polyline = L.polyline([
+[40.233095,117.396814],
+[40.242128,117.360068],
+[40.25027,117.348757],
+[40.283717,117.343034],
+[40.284012,117.30242],
+[40.298824,117.300909],
+[40.307248,117.294971],
+[40.31483,117.280908],
+[40.331475,117.277872],
+[40.338248,117.281586],
+[40.343838,117.268763],
+[40.376793,117.248206],
+[40.375358,117.233105],
+[40.381682,117.230104],
+[40.392322,117.235062],
+[40.395752,117.241661],
+[40.400548,117.243127],
+[40.40068,117.246722],
+[40.405045,117.24604],
+[40.410209,117.238857],
+[40.42306,117.240581],
+[40.435421,117.256385],
+[40.436067,117.263364],
+[40.447321,117.26993],
+[40.464298,117.241196],
+[40.475311,117.242267],
+[40.484311,117.232341],
+[40.48752,117.234676],
+[40.501212,117.223574],
+[40.502724,117.215835],
+[40.512643,117.21653],
+[40.518656,117.220225],
+[40.519506,117.239555],
+[40.523751,117.245336],
+[40.518445,117.253813],
+[40.525486,117.266702],
+[40.54366,117.256848],
+[40.547985,117.259649],
+[40.554638,117.256124],
+[40.564079,117.272602],
+[40.572713,117.302711],
+[40.582207,117.317146],
+[40.582418,117.340905],
+[40.586185,117.356706],
+[40.582034,117.372601],
+[40.572888,117.382658],
+[40.567374,117.395929],
+[40.579774,117.410574],
+[40.574504,117.426571],
+[40.584657,117.436606],
+[40.58783,117.42995],
+[40.612091,117.420328],
+[40.643382,117.429118],
+[40.653361,117.478347],
+[40.64184,117.485398],
+[40.642461,117.507621],
+[40.659031,117.509516],
+[40.660949,117.513171],
+[40.673448,117.512283],
+[40.68091,117.501618],
+[40.683865,117.486462],
+[40.679811,117.471233],
+[40.691901,117.427458],
+[40.691963,117.413032],
+[40.681015,117.368422],
+[40.680053,117.352677],
+[40.672822,117.343188],
+[40.669474,117.343163],
+[40.666479,117.332062],
+[40.665641,117.298595],
+[40.672219,117.284975],
+[40.687306,117.267992],
+[40.682887,117.248559],
+[40.691027,117.237938],
+[40.700633,117.21279],
+[40.703272,117.189813],
+[40.699216,117.185509],
+[40.704884,117.173492],
+[40.703082,117.159189],
+[40.706232,117.123309],
+[40.713341,117.11851],
+[40.708002,117.090641],
+[40.706007,117.056273],
+[40.698128,117.037346],
+[40.702995,117.010825],
+[40.715332,116.971399],
+[40.719631,116.972824],
+[40.733725,116.951579],
+[40.745358,116.947612],
+[40.750454,116.933105],
+[40.757856,116.929846],
+[40.762214,116.934815],
+[40.779446,116.930179],
+[40.783162,116.904581],
+[40.788008,116.901081],
+[40.800071,116.9026],
+[40.809295,116.88808],
+[40.820112,116.888235],
+[40.827765,116.881718],
+[40.831665,116.867501],
+[40.841264,116.862506],
+[40.847245,116.844057],
+[40.848436,116.829961],
+[40.853933,116.827445],
+[40.853821,116.819235],
+[40.846273,116.812193],
+[40.85693,116.80869],
+[40.879637,116.789081],
+[40.887135,116.77733],
+[40.889985,116.764859],
+[40.896678,116.765735],
+[40.903681,116.743541],
+[40.903223,116.737051],
+[40.909594,116.732415],
+[40.915779,116.720191],
+[40.924405,116.722334],
+[40.935302,116.73105],
+[40.941791,116.724433],
+[40.939941,116.712821],
+[40.956023,116.697791],
+[40.967528,116.693814],
+[40.977679,116.684172],
+[40.982014,116.684106],
+[40.988235,116.691199],
+[41.007364,116.691729],
+[41.014096,116.698209],
+[41.018573,116.697524],
+[41.021883,116.702854],
+[41.031402,116.704409],
+[41.050272,116.696054],
+[41.047187,116.690283],
+[41.056873,116.665317],
+[41.063919,116.655365],
+[41.066884,116.637532],
+[41.061892,116.632524],
+[41.059055,116.622608],
+[41.054896,116.624713],
+[41.04299,116.620421],
+[41.0337,116.628376],
+[41.022061,116.62829],
+[41.0105,116.622062],
+[40.992318,116.621672],
+[40.981254,116.606371],
+[40.985128,116.592437],
+[40.993771,116.580618],
+[40.998804,116.566631],
+[40.994409,116.56466],
+[40.993979,116.554092],
+[40.996659,116.547776],
+[40.987794,116.525911],
+[40.981751,116.523141],
+[40.984453,116.499718],
+[40.988346,116.492126],
+[40.983933,116.480946],
+[40.990227,116.470491],
+[40.984177,116.462585],
+[40.960213,116.454523],
+[40.938999,116.468624],
+[40.93707,116.474211],
+[40.917902,116.481905],
+[40.905498,116.483361],
+[40.903074,116.480853],
+[40.90498,116.443685],
+[40.909232,116.437039],
+[40.906839,116.421842],
+[40.911863,116.408434],
+[40.92057,116.398376],
+[40.949215,116.377851],
+[40.949316,116.372863],
+[40.941941,116.366048],
+[40.936639,116.347659],
+[40.9254,116.341021],
+[40.91152,116.340967],
+[40.869752,116.388424],
+[40.868438,116.396076],
+[40.861524,116.397954],
+[40.847151,116.411794],
+[40.839748,116.412806],
+[40.824186,116.444768],
+[40.812842,116.449148],
+[40.803974,116.458652],
+[40.802591,116.465447],
+[40.77826,116.472163],
+[40.771806,116.460539],
+[40.772914,116.445402],
+[40.768351,116.422367],
+[40.785757,116.416833],
+[40.78488,116.401677],
+[40.776837,116.373736],
+[40.778196,116.328394],
+[40.77693,116.320514],
+[40.769582,116.314111],
+[40.760475,116.317666],
+[40.758484,116.314075],
+[40.770103,116.294132],
+[40.769739,116.280562],
+[40.781289,116.275753],
+[40.797832,116.254416],
+[40.789088,116.241679],
+[40.781394,116.242438],
+[40.768522,116.236838],
+[40.764807,116.240245],
+[40.750547,116.221101],
+[40.746062,116.219936],
+[40.739108,116.226137],
+[40.727078,116.216877],
+[40.72149,116.209974],
+[40.724782,116.193057],
+[40.718765,116.18734],
+[40.702363,116.177616],
+[40.699151,116.180134],
+[40.674123,116.171808],
+[40.669972,116.164609],
+[40.673475,116.148927],
+[40.661807,116.138716],
+[40.654743,116.120445],
+[40.649776,116.118173],
+[40.631189,116.126964],
+[40.62193,116.117788],
+[40.615224,116.068027],
+[40.603575,116.037281],
+[40.604705,116.026374],
+[40.594188,116.01256],
+[40.581671,116.00943],
+[40.584777,115.988979],
+[40.607208,115.979101],
+[40.607401,115.96029],
+[40.617487,115.950341],
+[40.619091,115.934286],
+[40.624756,115.916134],
+[40.602501,115.894762],
+[40.593641,115.834129],
+[40.569572,115.82805],
+[40.563255,115.820068],
+[40.563806,115.805593],
+[40.567662,115.797891],
+[40.545073,115.767764],
+[40.545717,115.761164],
+[40.510394,115.742637],
+[40.498003,115.752305],
+[40.492361,115.783837],
+[40.468534,115.775733],
+[40.455699,115.778708],
+[40.444804,115.788186],
+[40.436957,115.803563],
+[40.426348,115.811505],
+[40.392614,115.824703],
+[40.384772,115.839213],
+[40.38265,115.855604],
+[40.368466,115.87134],
+[40.364071,115.882848],
+[40.367279,115.895453],
+[40.366321,115.910131],
+[40.373277,115.91565],
+[40.373176,115.92271],
+[40.348471,115.930506],
+[40.342954,115.929014],
+[40.324907,115.93938],
+[40.320196,115.949202],
+[40.31592,115.950679],
+[40.310072,115.946689],
+[40.294974,115.952985],
+[40.293726,115.95687],
+[40.28308,115.962316],
+[40.28117,115.967807],
+[40.276763,115.967703],
+[40.269453,115.974803],
+[40.263582,115.96956],
+[40.261757,115.939616],
+[40.254556,115.925633],
+[40.241488,115.917889],
+[40.241696,115.905256],
+[40.22004,115.890773],
+[40.215076,115.894544],
+[40.193072,115.878751],
+[40.19034,115.86747],
+[40.173889,115.850978],
+[40.154416,115.859884],
+[40.159262,115.813286],
+[40.174545,115.800328],
+[40.18475,115.796151],
+[40.182207,115.779416],
+[40.172296,115.774742],
+[40.169641,115.763447],
+[40.159365,115.756972],
+[40.150631,115.761798],
+[40.140404,115.754547],
+[40.134635,115.731648],
+[40.144939,115.693943],
+[40.133591,115.661502],
+[40.123404,115.657429],
+[40.122766,115.618554],
+[40.120591,115.61325],
+[40.109824,115.61212],
+[40.10545,115.607844],
+[40.099374,115.610083],
+[40.101838,115.587407],
+[40.108779,115.582502],
+[40.087639,115.559105],
+[40.082009,115.549021],
+[40.082349,115.534603],
+[40.071128,115.516148],
+[40.063479,115.513656],
+[40.056354,115.49734],
+[40.039915,115.479551],
+[40.033699,115.462648],
+[40.029466,115.459211],
+[39.999598,115.454533],
+[40.000977,115.450072],
+[39.995542,115.440883],
+[39.985449,115.43257],
+[39.961629,115.430282],
+[39.956319,115.433244],
+[39.958579,115.448393],
+[39.943021,115.482655],
+[39.927586,115.496416],
+[39.919226,115.513516],
+[39.907377,115.527724],
+[39.904259,115.529448],
+[39.889913,115.51576],
+[39.886911,115.517443],
+[39.882121,115.535997],
+[39.874847,115.530323],
+[39.86375,115.527983],
+[39.850512,115.517405],
+[39.836925,115.532551],
+[39.832822,115.551154],
+[39.819741,115.575643],
+[39.811205,115.57307],
+[39.801297,115.558665],
+[39.802418,115.550738],
+[39.794138,115.519505],
+[39.788984,115.513357],
+[39.802132,115.498847],
+[39.804462,115.490144],
+[39.789538,115.466597],
+[39.789696,115.446208],
+[39.782414,115.443016],
+[39.755596,115.4537],
+[39.746881,115.475508],
+[39.748202,115.489207],
+[39.744467,115.498946],
+[39.737957,115.494841],
+[39.707306,115.498926],
+[39.69717,115.506367],
+[39.687104,115.495458],
+[39.674617,115.49821],
+[39.661638,115.485294],
+[39.656314,115.485203],
+[39.65776,115.513505],
+[39.648146,115.522393],
+[39.645963,115.528856],
+[39.618943,115.525992],
+[39.617612,115.539326],
+[39.625147,115.552049],
+[39.604458,115.575098],
+[39.602542,115.580881],
+[39.598252,115.57802],
+[39.597404,115.580937],
+[39.595736,115.592675],
+[39.605443,115.606081],
+[39.609891,115.624996],
+[39.603874,115.640839],
+[39.60979,115.640124],
+[39.609304,115.648167],
+[39.605047,115.650382],
+[39.607415,115.664199],
+[39.614593,115.677061],
+[39.602859,115.687469],
+[39.597042,115.6977],
+[39.58446,115.700636],
+[39.572297,115.698616],
+[39.567191,115.724345],
+[39.55403,115.733957],
+[39.549176,115.744881],
+[39.530171,115.750469],
+[39.518671,115.758146],
+[39.52097,115.769417],
+[39.513389,115.774597],
+[39.521173,115.77468],
+[39.516067,115.803517],
+[39.518631,115.833646],
+[39.547445,115.834908],
+[39.549069,115.852755],
+[39.557078,115.853237],
+[39.558462,115.859607],
+[39.553433,115.872222],
+[39.55684,115.893877],
+[39.562061,115.893426],
+[39.562647,115.89959],
+[39.57279,115.900299],
+[39.575423,115.914709],
+[39.579418,115.918661],
+[39.5894,115.92096],
+[39.59102,115.91514],
+[39.602606,115.913687],
+[39.605797,115.919764],
+[39.603682,115.927621],
+[39.600123,115.927525],
+[39.59979,115.93517],
+[39.590961,115.936548],
+[39.582123,115.950787],
+[39.572271,115.956732],
+[39.57154,115.964618],
+[39.576154,115.983172],
+[39.600071,115.983491],
+[39.600501,115.991092],
+[39.599442,115.998195],
+[39.589146,115.999942],
+[39.588679,116.003687],
+[39.582687,116.001695],
+[39.583917,116.014635],
+[39.593854,116.022136],
+[39.57876,116.043035],
+[39.577713,116.07333],
+[39.580779,116.110362],
+[39.576795,116.111984],
+[39.575452,116.153802],
+[39.586423,116.16104],
+[39.588234,116.200314],
+[39.58384,116.207352],
+[39.584402,116.227953],
+[39.556047,116.245105],
+[39.552413,116.250727],
+[39.521643,116.251984],
+[39.516687,116.258316],
+[39.50889,116.261105],
+[39.501232,116.282528],
+[39.497833,116.285552],
+[39.493163,116.310498],
+[39.480138,116.325583],
+[39.468477,116.332267],
+[39.458592,116.349029],
+[39.453985,116.351422],
+[39.453886,116.371229],
+[39.457582,116.372291],
+[39.459122,116.383324],
+[39.456088,116.394203],
+[39.458963,116.399532],
+[39.454582,116.425853],
+[39.445587,116.436799],
+[39.448582,116.444783],
+[39.447369,116.448654],
+[39.453186,116.458375],
+[39.46309,116.462321],
+[39.468347,116.456546],
+[39.482176,116.454885],
+[39.492161,116.44748],
+[39.502878,116.427339],
+[39.529626,116.413425],
+[39.528906,116.425291],
+[39.522346,116.432281],
+[39.522359,116.441316],
+[39.524486,116.446318],
+[39.535027,116.449053],
+[39.545471,116.483584],
+[39.555351,116.484288],
+[39.561538,116.51236],
+[39.579411,116.533535],
+[39.603113,116.530868],
+[39.604456,116.561077],
+[39.60992,116.575397],
+[39.615511,116.574035],
+[39.625892,116.578352],
+[39.62995,116.597606],
+[39.627922,116.608882],
+[39.617675,116.60958],
+[39.614326,116.618347],
+[39.598435,116.63956],
+[39.602253,116.649575],
+[39.612935,116.65341],
+[39.602494,116.701393],
+[39.59463,116.710341],
+[39.599557,116.735224],
+[39.615639,116.712803],
+[39.620278,116.712707],
+[39.622677,116.732272],
+[39.621126,116.770397],
+[39.611405,116.781618],
+[39.600158,116.786732],
+[39.602738,116.794329],
+[39.609761,116.792869],
+[39.610925,116.798272],
+[39.616774,116.798806],
+[39.623318,116.835365],
+[39.629981,116.847796],
+[39.642124,116.837352],
+[39.648702,116.837919],
+[39.661133,116.857622],
+[39.670383,116.858348],
+[39.673679,116.862345],
+[39.681869,116.890055],
+[39.67916,116.899041],
+[39.682652,116.913065],
+[39.692889,116.912129],
+[39.709769,116.895367],
+[39.722799,116.889375],
+[39.731878,116.896226],
+[39.732316,116.905895],
+[39.737685,116.918338],
+[39.755851,116.915713],
+[39.765245,116.905956],
+[39.769397,116.917067],
+[39.785708,116.926504],
+[39.787312,116.954922],
+[39.788953,116.958916],
+[39.793369,116.957802],
+[39.802187,116.947889],
+[39.801267,116.942966],
+[39.807497,116.941163],
+[39.811272,116.944047],
+[39.8194,116.934897],
+[39.836027,116.934864],
+[39.8546,116.921582],
+[39.858458,116.914208],
+[39.856768,116.910419],
+[39.849417,116.908704],
+[39.836888,116.914744],
+[39.838156,116.906097],
+[39.85166,116.892248],
+[39.864936,116.865868],
+[39.876295,116.858785],
+[39.895721,116.826594],
+[39.894968,116.810909],
+[39.891052,116.798184],
+[39.904278,116.790891],
+[39.924116,116.787847],
+[39.947352,116.790425],
+[39.957745,116.784383],
+[39.962352,116.785533],
+[39.966493,116.781118],
+[39.962551,116.778104],
+[39.965436,116.768888],
+[39.963757,116.766651],
+[39.967772,116.763082],
+[39.991807,116.774479],
+[39.999264,116.782163],
+[40.020054,116.777743],
+[40.04063,116.79169],
+[40.035326,116.808115],
+[40.039475,116.812623],
+[40.034153,116.829879],
+[40.053132,116.830104],
+[40.058213,116.856134],
+[40.06071,116.856655],
+[40.059915,116.862424],
+[40.046781,116.879125],
+[40.052001,116.887003],
+[40.05203,116.897445],
+[40.058756,116.91645],
+[40.058581,116.921103],
+[40.052961,116.924633],
+[40.052608,116.929155],
+[40.060357,116.937167],
+[40.053844,116.945078],
+[40.054797,116.949071],
+[40.047448,116.953609],
+[40.057487,116.968858],
+[40.054388,116.97638],
+[40.047527,116.979592],
+[40.045447,116.9842],
+[40.038834,117.01239],
+[40.038702,117.03162],
+[40.055848,117.045767],
+[40.061359,117.060658],
+[40.064898,117.062142],
+[40.070829,117.088476],
+[40.076216,117.095952],
+[40.078627,117.119763],
+[40.070338,117.142575],
+[40.075069,117.16233],
+[40.081988,117.167983],
+[40.07842,117.183281],
+[40.091165,117.191574],
+[40.102784,117.219451],
+[40.100735,117.230842],
+[40.104818,117.230798],
+[40.125811,117.256558],
+[40.118738,117.264635],
+[40.119351,117.282491],
+[40.127966,117.294419],
+[40.128324,117.305696],
+[40.145199,117.318401],
+[40.148592,117.351763],
+[40.166702,117.364739],
+[40.179331,117.360039],
+[40.184583,117.371849],
+[40.184087,117.39733],
+[40.190451,117.411835],
+[40.193758,117.413853],
+[40.194931,117.410394],
+[40.192313,117.402432],
+[40.198355,117.386786],
+[40.205991,117.387165],
+[40.209093,117.394824],
+[40.212225,117.395258],
+[40.214483,117.385567],
+[40.223684,117.38483],
+[40.227136,117.399491],
+[40.233095,117.396814]
+], {color: 'red'}).addTo(map);
+
+		var popup = L.popup();
+
+		function onMapClick(e) {
+			popup
+				.setLatLng(e.latlng)
+				.setContent("You clicked the map at " + e.latlng.toString())
+				.openOn(map);
+		}
+
+		map.on('click', onMapClick);
+    };
+</script>
+ 
+</body>
+</html>

@@ -1,185 +1,235 @@
 <html>
 <head>
-	<title>Leaflet</title>
+	<title>Google Custom Styles // Leaflet</title>
 	<link rel="stylesheet" href="http://cdn.leafletjs.com/leaflet-0.7/leaflet.css" />
 	<script src="http://cdn.leafletjs.com/leaflet-0.7/leaflet.js"></script>
-	<!--<script src="../layer/vector/OSM.js"></script>-->
+	<script src="http://maps.google.com/maps/api/js?v=3&sensor=false"></script>
+	<!--<script src="../layer/tile/Google.js"></script>-->
 	<script type='text/javascript'>
-	L.OSM = L.FeatureGroup.extend({
+	/*
+ * Google layer using Google Maps API
+ */
+
+/* global google: true */
+
+L.Google = L.Class.extend({
+	includes: L.Mixin.Events,
+
 	options: {
-		async: true,
-		forceAll: false
+		minZoom: 0,
+		maxZoom: 18,
+		tileSize: 256,
+		subdomains: 'abc',
+		errorTileUrl: '',
+		attribution: '',
+		opacity: 1,
+		continuousWorld: false,
+		noWrap: false,
+		mapOptions: {
+			backgroundColor: '#dddddd'
+		}
 	},
 
-	initialize: function(url, options) {
+	// Possible types: SATELLITE, ROADMAP, HYBRID, TERRAIN
+	initialize: function(type, options) {
 		L.Util.setOptions(this, options);
-		this._url = url;
-		this._layers = {};
-		
-		if (url) {
-			this.addXML(url, options, this.options.async);
+
+		this._ready = google.maps.Map !== undefined;
+		if (!this._ready) L.Google.asyncWait.push(this);
+
+		this._type = type || 'SATELLITE';
+	},
+
+	onAdd: function(map, insertAtTheBottom) {
+		this._map = map;
+		this._insertAtTheBottom = insertAtTheBottom;
+
+		// create a container div for tiles
+		this._initContainer();
+		this._initMapObject();
+
+		// set up events
+		map.on('viewreset', this._resetCallback, this);
+
+		this._limitedUpdate = L.Util.limitExecByInterval(this._update, 150, this);
+		map.on('move', this._update, this);
+
+		map.on('zoomanim', this._handleZoomAnim, this);
+
+		//20px instead of 1em to avoid a slight overlap with google's attribution
+		map._controlCorners.bottomright.style.marginBottom = '20px';
+
+		this._reset();
+		this._update();
+	},
+
+	onRemove: function(map) {
+		map._container.removeChild(this._container);
+
+		map.off('viewreset', this._resetCallback, this);
+
+		map.off('move', this._update, this);
+
+		map.off('zoomanim', this._handleZoomAnim, this);
+
+		map._controlCorners.bottomright.style.marginBottom = '0em';
+	},
+
+	getAttribution: function() {
+		return this.options.attribution;
+	},
+
+	setOpacity: function(opacity) {
+		this.options.opacity = opacity;
+		if (opacity < 1) {
+			L.DomUtil.setOpacity(this._container, opacity);
 		}
 	},
-	
-	loadXML: function(url, cb, options, async) {
-		if (async === undefined) async = this.options.async;
-		if (options === undefined) options = this.options;
 
-		var req = new window.XMLHttpRequest();
-		req.open('GET', url, async);
-		req.overrideMimeType('text/xml');
-		req.onreadystatechange = function() {
-			if (req.readyState !== 4) return;
-			if (req.status === 200) cb(req.responseXML, options);
-		};
-		req.send(null);
+	setElementSize: function(e, size) {
+		e.style.width = size.x + 'px';
+		e.style.height = size.y + 'px';
 	},
 
-	addXML: function(url, options, async) {
+	_initContainer: function() {
+		var tilePane = this._map._container,
+			first = tilePane.firstChild;
+
+		if (!this._container) {
+			this._container = L.DomUtil.create('div', 'leaflet-google-layer leaflet-top leaflet-left');
+			this._container.id = '_GMapContainer_' + L.Util.stamp(this);
+			this._container.style.zIndex = 'auto';
+		}
+
+		tilePane.insertBefore(this._container, first);
+
+		this.setOpacity(this.options.opacity);
+		this.setElementSize(this._container, this._map.getSize());
+	},
+
+	_initMapObject: function() {
+		if (!this._ready) return;
+		this._google_center = new google.maps.LatLng(0, 0);
+		var map = new google.maps.Map(this._container, {
+			center: this._google_center,
+			zoom: 0,
+			tilt: 0,
+			mapTypeId: google.maps.MapTypeId[this._type],
+			disableDefaultUI: true,
+			keyboardShortcuts: false,
+			draggable: false,
+			disableDoubleClickZoom: true,
+			scrollwheel: false,
+			streetViewControl: false,
+			styles: this.options.mapOptions.styles,
+			backgroundColor: this.options.mapOptions.backgroundColor
+		});
+
 		var _this = this;
-		var cb = function(xml, options) { _this._addXML(xml, options); };
-		this.loadXML(url, cb, options, async);
+		this._reposition = google.maps.event.addListenerOnce(map, 'center_changed',
+			function() { _this.onReposition(); });
+		this._google = map;
+
+		google.maps.event.addListenerOnce(map, 'idle',
+			function() { _this._checkZoomLevels(); });
+		//Reporting that map-object was initialized.
+		this.fire('MapObjectInitialized', { mapObject: map });
 	},
 
-	_addXML: function(xml, options) {
-		var layers = this.parseOSM(xml, options);
-		if (!layers) return;
-		this.addLayer(layers);
-		this.fire('loaded');
-	},
-
-	parseOSM: function(xml, options) {
-		var i, el, ll, layers = [];
-		var nodes = {};
-		var ways = {};
-		var named = false;
-
-		el = xml.getElementsByTagName('node');
-		for (i = 0; i < el.length; i++) {
-			var l = this.parse_node(el[i], xml, options);
-			if (l === undefined) continue;
-			nodes[l.osmid] = l;
-			if (!this.options.forceAll && !l.tags.length) continue;
-			var m = this.named_node(l, options);
-			if (!ll) ll = m.getLatLng();
-			if (this.parse_name(m, l, 'Node')) named = true;
-			layers.push(m);
+	_checkZoomLevels: function() {
+		//setting the zoom level on the Google map may result in a different zoom level than the one requested
+		//(it won't go beyond the level for which they have data).
+		// verify and make sure the zoom levels on both Leaflet and Google maps are consistent
+		if (this._google.getZoom() !== this._map.getZoom()) {
+			//zoom levels are out of sync. Set the leaflet zoom level to match the google one
+			this._map.setZoom( this._google.getZoom() );
 		}
-
-		el = xml.getElementsByTagName('way');
-		for (i = 0; i < el.length; i++) {
-			if (i > 10) break;
-			var way = this.parse_way(el[i], nodes, options);
-			if (!way) continue;
-			if (!ll) ll = way.getLatLngs()[0];
-			if (this.parse_name(way, way, 'Way')) named = true;
-			layers.push(way);
-			ways[way.osmid] = way;
-		}
-
-		el = xml.getElementsByTagName('relation');
-		for (i = 0; i < el.length; i++) {
-			if (i > 10) break;
-			var relation = this.parse_relation(el[i], ways, options);
-			if (!relation) continue;
-			if (!ll) ll = relation.getLatLngs()[0];
-			if (this.parse_name(relation, relation, 'Relation')) named = true;
-			layers.push(relation);
-		}
-
-		if (!layers.length) return;
-		var layer = layers[0];
-		if (layers.length > 1) 
-			layer = new L.FeatureGroup(layers);
-		if (!named) this.parse_name(xml, layer);
-		layer.focusPoint = ll;
-		return layer;
 	},
 
-	parse_name: function(layer, obj, obj_name) {
-		if (!this.options.forceAll)
-			if (!obj.tags || !obj.tags.length) return;
-		var i, txt = '<table>';
-		for (i = 0; i < obj.tags.length; i++) {
-			var t = obj.tags[i];
-			txt += '<tr><td>' + t.k + '</td><td>=</td><td>' + t.v + '</td></tr>';
-		}
-		txt += '</table>';
-		txt = '<h2>' + obj_name + ' ' + obj.osmid + '</h2>' + txt;
-		if (layer) layer.bindPopup(txt);
-		return txt;
+	_resetCallback: function(e) {
+		this._reset(e.hard);
 	},
 
-	parse_tags: function(line) {
-		var tags = [], el = line.getElementsByTagName('tag');
-		for (var i = 0; i < el.length; i++)
-			tags.push({k: el[i].getAttribute('k'), v: el[i].getAttribute('v')});
-		return tags;
+	_reset: function(clearOldContainer) {
+		this._initContainer();
 	},
 
-	parse_node: function(e) {
-		var n = { osmid: e.getAttribute('id'),
-			lat:e.getAttribute('lat'),
-			lon:e.getAttribute('lon')
-		};
-		n.ll = new L.LatLng(n.lat, n.lon);
-		n.tags = this.parse_tags(e);
-		return n;
+	_update: function(e) {
+		if (!this._google) return;
+		this._resize();
+
+		var center = this._map.getCenter();
+		var _center = new google.maps.LatLng(center.lat, center.lng);
+
+		this._google.setCenter(_center);
+		this._google.setZoom(Math.round(this._map.getZoom()));
+
+		this._checkZoomLevels();
 	},
 
-	parse_way: function(line, nodes, options) {
-		var el = line.getElementsByTagName('nd');
-		if (!el.length) return;
-		var coords = [], tags = [];
-		for (var i = 0; i < el.length; i++) {
-			var ref = el[i].getAttribute('ref'), n = nodes[ref];
-			if (!n) return;
-			coords.push(n.ll);
-		}
-		var layer = new L.Polyline(coords, options);
-		layer.tags = this.parse_tags(line);
-		layer.osmid = line.getAttribute('id');
-		return layer;
-	},
-
-	parse_relation: function(line, ways, options) {
-		var el = line.getElementsByTagName('member');
-		if (!el.length) return;
-		var rt, coords = [], tags = this.parse_tags(line);
-		var i;
-		for (i = 0; i < tags.length; i++)
-			if (tags[i].k === 'type') rt = tags[i].v;
-
-		if (rt !== 'multipolygon' && rt !== 'boundary' && rt !== 'waterway')
+	_resize: function() {
+		var size = this._map.getSize();
+		if (this._container.style.width === size.x &&
+				this._container.style.height === size.y)
 			return;
-
-		for (i = 0; i < el.length; i++) {
-			var mt = el[i].getAttribute('type'), ref = el[i].getAttribute('ref');
-			if (mt !== 'way') continue;
-			var w = ways[ref];
-			if (!w) return;
-			coords.push(w);
-		}
-		if (!coords.length) return;
-		var layer = new L.MultiPolyline(coords, options);
-		layer.tags = this.parse_tags(line);
-		layer.osmid = line.getAttribute('id');
-		return layer;
+		this.setElementSize(this._container, size);
+		this.onReposition();
 	},
 
-	named_node: function(node, options) {
-		var marker = new L.Marker(new L.LatLng(node.lat, node.lon), options);
-		return marker;
+
+	_handleZoomAnim: function (e) {
+		var center = e.center;
+		var _center = new google.maps.LatLng(center.lat, center.lng);
+
+		this._google.setCenter(_center);
+		this._google.setZoom(Math.round(e.zoom));
+	},
+
+
+	onReposition: function() {
+		if (!this._google) return;
+		google.maps.event.trigger(this._google, 'resize');
 	}
 });
+
+L.Google.asyncWait = [];
+L.Google.asyncInitialize = function() {
+	var i;
+	for (i = 0; i < L.Google.asyncWait.length; i++) {
+		var o = L.Google.asyncWait[i];
+		o._ready = true;
+		if (o._container) {
+			o._initMapObject();
+			o._update();
+		}
+	}
+	L.Google.asyncWait = [];
+};
 
 	</script>
 </head>
 <body>
+	<!-- define a DIV into which the map will appear. Make it take up the whole window -->
 	<div style="width:100%; height:100%" id="map"></div>
 <script type='text/javascript'>
-var map = new L.Map('map', {center: new L.LatLng(39.5, 117), zoom: 9, zoomAnimation: true });
-map.addLayer(new L.TileLayer('http://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'));
+var map = new L.Map('map', {center: new L.LatLng(40,117), zoom: 8,zoomAnimation: true});
+var osm = new L.TileLayer('http://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png');
+
+var styles = [
+    {
+      featureType: 'all',
+      stylers: [{hue: '#123456'}]
+    }
+ ];
+
+var ggl = new L.Google('ROADMAP', {
+	mapOptions: {
+		styles: styles
+	}
+});
+map.addLayer(ggl);
+map.addControl(new L.Control.Layers( {'OSM':osm, 'Google':ggl}, {}));
+//-----------------------------------
 var myIcon = L.icon({
     iconUrl: 'icon.png',
     iconRetinaUrl: 'icon.png',
@@ -816,6 +866,8 @@ var myIcon = L.icon({
 		}
 
 		map.on('click', onMapClick);
+
+//-----------------------------------------
 </script>
  
 </body>
